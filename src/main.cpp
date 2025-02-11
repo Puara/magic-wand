@@ -16,11 +16,20 @@ Adafruit_BNO055 bno = Adafruit_BNO055();
 #include "puara.h"
 Puara puara;
 
+// ======== OSC ========
+
+#include <WiFiUdp.h>
+#include <OSCMessage.h>
+WiFiUDP Udp;
+
 // the setup routine runs once when you press reset:
 void setup() {
   Serial.begin(115200);
 
   puara.start();
+
+  // Start the UDP instances
+  Udp.begin(puara.getLocalPORT());
 
   //=== turn on and init the tft screen ===
   pinMode(TFT_BACKLITE, OUTPUT);
@@ -46,6 +55,18 @@ void loop() {
   /* Get a new sensor event */
   sensors_event_t event;
   bno.getEvent(&event);
+
+  /* OSC test*/
+
+  if(puara.IP1_ready()){
+    OSCMessage msg1(("/" + puara.get_dmi_name()).c_str());
+    float testValue = 0.5;
+    msg1.add(testValue);
+    Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
+    msg1.send(Udp);
+    Udp.endPacket();
+    msg1.empty();
+  }
 
   /* Display the floating point data */
   canvas.fillScreen(ST77XX_BLACK);
