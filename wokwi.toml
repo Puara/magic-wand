@@ -1,5 +1,6 @@
+# Wokwi Configuration File
+# Reference: https://docs.wokwi.com/vscode/project-config
 [wokwi]
 version = 1
-elf = ".pio/build/adafruit_feather_esp32s3_tft/firmware.elf"
-firmware = ".pio/build/adafruit_feather_esp32s3_tft/firmware.bin"
-gdbServerPort = 3333
+firmware = '.pio/build/magicwand/firmware.bin'
+elf = '.pio/build/magicwand/firmware.elf'
