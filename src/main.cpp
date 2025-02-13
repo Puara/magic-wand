@@ -92,24 +92,12 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-        OSCMessage msg1(("/" + puara.get_dmi_name() + "/X").c_str());
-        OSCMessage msg2(("/" + puara.get_dmi_name() + "/Y").c_str());
-        OSCMessage msg3(("/" + puara.get_dmi_name() + "/Z").c_str());
-        msg1.add(event.orientation.x);
-        msg2.add(event.orientation.y);
-        msg3.add(event.orientation.z);
+        OSCMessage msg1(("/" + puara.get_dmi_name() + "/Orientation").c_str());
+        msg1.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
         Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
         msg1.send(Udp);
         Udp.endPacket();
         msg1.empty();
-        Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msg2.send(Udp);
-        Udp.endPacket();
-        msg2.empty();
-        Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msg3.send(Udp);
-        Udp.endPacket();
-        msg3.empty();
     }
 
     /* Display the floating point data */
