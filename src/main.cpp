@@ -85,6 +85,8 @@ void loop() {
     sensors_event_t event;
     bno.getEvent(&event);
 
+    std::string baseMessage = ("/Magic_Wand");
+
     /* 
      * Sending OSC messages.
      * If you're not planning to send messages to both addresses (OSC1 and OSC2),
@@ -92,19 +94,24 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-        OSCMessage msg1(("/" + puara.get_dmi_name() + "/Orientation").c_str());
-        msg1.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
+        OSCMessage msgOrient((baseMessage + "/Orientation").c_str());
+        OSCMessage msgAccl((baseMessage + "/Accelerometer").c_str());
+        msgOrient.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
+        //msgAccl.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
+        //msgAccl.add(event.acceleration.x).add(event.acceleration.y).add(event.acceleration.z);
         Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msg1.send(Udp);
+        msgOrient.send(Udp);
+        msgAccl.send(Udp);
         Udp.endPacket();
-        msg1.empty();
+        msgOrient.empty();
+        msgAccl.empty();
     }
 
     /* Display the floating point data */
     canvas.fillScreen(ST77XX_BLACK);
     canvas.setCursor(0, 10);
     canvas.setTextColor(ST77XX_MAGENTA);
-    canvas.setTextSize(3);
+    canvas.setTextSize(2);
     canvas.print("X: ");
     canvas.print(event.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
@@ -113,6 +120,8 @@ void loop() {
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
     canvas.print(event.orientation.z, 4);
+    /*canvas.print("\nIP: ");
+    canvas.print();*/
     
     tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     
