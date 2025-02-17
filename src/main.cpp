@@ -100,20 +100,27 @@ void loop() {
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
         OSCBundle bundle;
 
-        OSCMessage msgOrientation(("/" + puara.get_dmi_name() + "/Orientation").c_str());
-        OSCMessage msgAcceleration(("/" + puara.get_dmi_name() + "/Acceleration").c_str());
+        String baseMessage = ("/" + puara.get_dmi_name()).c_str();
+
+        OSCMessage msgOrientation((baseMessage + "/Orientation").c_str());
+        OSCMessage msgAcceleration((baseMessage + "/Acceleration").c_str());
+        OSCMessage msgGyroscope((baseMessage + "/Gyroscope").c_str());
         //msg1.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
         
         msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
         msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
+        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
 
         bundle.add(msgOrientation);
         bundle.add(msgAcceleration);
+        bundle.add(msgGyroscope);
+        
         Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
         bundle.send(Udp);
         Udp.endPacket();
         msgOrientation.empty();
         msgAcceleration.empty();
+        msgGyroscope.empty();
     }
 
     /* Display the floating point data */
