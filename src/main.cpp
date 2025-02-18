@@ -36,6 +36,7 @@ Puara puara;
  */
 #include <WiFiUdp.h>
 #include <OSCMessage.h>
+#include <OSCBundle.h>
 
 // UDP instances to let us send and receive packets
 WiFiUDP Udp;
@@ -82,10 +83,13 @@ void setup() {
 void loop() {
 
     /* Get a new sensor event */
-    sensors_event_t event;
-    bno.getEvent(&event);
-
-    std::string baseMessage = ("/Magic_Wand");
+    sensors_event_t orientationData , angVelocityData , linearAccelData, magnetometerData, accelerometerData, gravityData;
+    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+    bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
+    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+    bno.getEvent(&magnetometerData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
+    bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    bno.getEvent(&gravityData, Adafruit_BNO055::VECTOR_GRAVITY);
 
     /* 
      * Sending OSC messages.
@@ -94,17 +98,29 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-        OSCMessage msgOrient((baseMessage + "/Orientation").c_str());
-        OSCMessage msgAccl((baseMessage + "/Accelerometer").c_str());
-        msgOrient.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
-        //msgAccl.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
-        //msgAccl.add(event.acceleration.x).add(event.acceleration.y).add(event.acceleration.z);
+        OSCBundle bundle;
+
+        String baseMessage = ("/" + puara.get_dmi_name()).c_str();
+
+        OSCMessage msgOrientation((baseMessage + "/Orientation").c_str());
+        OSCMessage msgAcceleration((baseMessage + "/Acceleration").c_str());
+        OSCMessage msgGyroscope((baseMessage + "/Gyroscope").c_str());
+        //msg1.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
+        
+        msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
+        msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
+        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
+
+        bundle.add(msgOrientation);
+        bundle.add(msgAcceleration);
+        bundle.add(msgGyroscope);
+        
         Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msgOrient.send(Udp);
-        msgAccl.send(Udp);
+        bundle.send(Udp);
         Udp.endPacket();
-        msgOrient.empty();
-        msgAccl.empty();
+        msgOrientation.empty();
+        msgAcceleration.empty();
+        msgGyroscope.empty();
     }
 
     /* Display the floating point data */
@@ -113,15 +129,13 @@ void loop() {
     canvas.setTextColor(ST77XX_MAGENTA);
     canvas.setTextSize(2);
     canvas.print("X: ");
-    canvas.print(event.orientation.x, 4);
+    canvas.print(orientationData.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
-    canvas.print(event.orientation.y, 4);
+    canvas.print(orientationData.orientation.y, 4);
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
-    canvas.print(event.orientation.z, 4);
-    /*canvas.print("\nIP: ");
-    canvas.print();*/
+    canvas.print(orientationData.orientation.z, 4);
     
     tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     
