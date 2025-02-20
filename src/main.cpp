@@ -57,7 +57,7 @@ void setup() {
     puara.start();
 
     // Start the UDP instances 
-    Udp.begin(puara.getLocalPORT());
+    Udp.begin(puara.LocalPORT());
 
     //=== turn on and init the tft screen ===
     pinMode(TFT_BACKLITE, OUTPUT);
@@ -100,7 +100,7 @@ void loop() {
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
         OSCBundle bundle;
 
-        String baseMessage = ("/" + puara.get_dmi_name()).c_str();
+        String baseMessage = ("/" + puara.dmi_name()).c_str();
 
         OSCMessage msgOrientation((baseMessage + "/Orientation").c_str());
         OSCMessage msgAcceleration((baseMessage + "/Acceleration").c_str());
@@ -115,7 +115,7 @@ void loop() {
         bundle.add(msgAcceleration);
         bundle.add(msgGyroscope);
         
-        Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
+        Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
         Udp.endPacket();
         msgOrientation.empty();
@@ -136,6 +136,8 @@ void loop() {
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
     canvas.print(orientationData.orientation.z, 4);
+    canvas.print("\nIP: ");
+    canvas.print(puara.staIP().c_str());
     
     tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     
