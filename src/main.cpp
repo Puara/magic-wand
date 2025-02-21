@@ -82,14 +82,11 @@ void setup() {
 
 void loop() {
 
-    /* Get a new sensor event */
-    sensors_event_t orientationData , angVelocityData , linearAccelData, magnetometerData, accelerometerData, gravityData;
+    /* Get a new event per sensor */
+    sensors_event_t orientationData, angVelocityData, accelerometerData;
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-    bno.getEvent(&magnetometerData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    bno.getEvent(&gravityData, Adafruit_BNO055::VECTOR_GRAVITY);
 
     /* 
      * Sending OSC messages.
@@ -98,6 +95,8 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
+        
+        // Create bundle to allow sending multiple OSC messages at once
         OSCBundle bundle;
 
         String baseMessage = ("/" + puara.dmi_name()).c_str();
@@ -105,7 +104,6 @@ void loop() {
         OSCMessage msgOrientation((baseMessage + "/Orientation").c_str());
         OSCMessage msgAcceleration((baseMessage + "/Acceleration").c_str());
         OSCMessage msgGyroscope((baseMessage + "/Gyroscope").c_str());
-        //msg1.add(event.orientation.x).add(event.orientation.y).add(event.orientation.z);
         
         msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
         msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
@@ -118,12 +116,9 @@ void loop() {
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
         Udp.endPacket();
-        msgOrientation.empty();
-        msgAcceleration.empty();
-        msgGyroscope.empty();
     }
 
-    /* Display the floating point data */
+    /* Display the floating point orientation data and IP address */
     canvas.fillScreen(ST77XX_BLACK);
     canvas.setCursor(0, 10);
     canvas.setTextColor(ST77XX_MAGENTA);
