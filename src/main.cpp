@@ -1,5 +1,5 @@
 //****************************************************************************//
-// Puara Module Manager                                                       //
+// Puara based Magic Wand (with BNO055 + BMP280 IMU)                          //
 // Société des Arts Technologiques (SAT)                                      //
 // Input Devices and Music Interaction Laboratory (IDMIL), McGill University  //
 //****************************************************************************//
@@ -43,6 +43,15 @@ WiFiUDP Udp;
 
 // Dummy sensor data
 float sensor;
+        
+// Create bundle to allow sending multiple OSC messages at once
+OSCBundle bundle;
+
+OSCMessage msgOrientation;
+OSCMessage msgAcceleration;
+OSCMessage msgGyroscope;
+
+std::string baseOSC;
 
 void setup() {
     #ifdef Arduino_h
@@ -58,6 +67,8 @@ void setup() {
 
     // Start the UDP instances 
     Udp.begin(puara.LocalPORT());
+
+    baseOSC = ("/" + puara.dmi_name()).c_str();
 
     //=== turn on and init the tft screen ===
     pinMode(TFT_BACKLITE, OUTPUT);
@@ -95,27 +106,22 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-        
-        // Create bundle to allow sending multiple OSC messages at once
-        OSCBundle bundle;
 
-        String baseMessage = ("/" + puara.dmi_name()).c_str();
-
-        OSCMessage msgOrientation((baseMessage + "/Orientation").c_str());
-        OSCMessage msgAcceleration((baseMessage + "/Acceleration").c_str());
-        OSCMessage msgGyroscope((baseMessage + "/Gyroscope").c_str());
-        
-        msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
-        msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
-        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
-
-        bundle.add(msgOrientation);
-        bundle.add(msgAcceleration);
-        bundle.add(msgGyroscope);
+        // Append message specific address
+        msgOrientation = (baseOSC + "/Orientation").c_str();
+        msgAcceleration = (baseOSC + "/Acceleration").c_str();
+        msgGyroscope = (baseOSC + "/Gyroscope").c_str();
+    
+        bundle.add(msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z));
+        bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
+        bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
         Udp.endPacket();
+
+        // Clear OSC 
+        bundle.empty();
     }
 
     /* Display the floating point orientation data and IP address */
