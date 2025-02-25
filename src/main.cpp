@@ -47,9 +47,10 @@ float sensor;
 // Create bundle to allow sending multiple OSC messages at once
 OSCBundle bundle;
 
-OSCMessage msgOrientation = "";
-OSCMessage msgAcceleration = "";
-OSCMessage msgGyroscope = "";
+// Append message specific address
+OSCMessage msgOrientation;
+OSCMessage msgAcceleration;
+OSCMessage msgGyroscope;
 
 // Base address of OSC messages
 std::string baseOSC;
@@ -72,6 +73,11 @@ void setup() {
     Udp.begin(puara.LocalPORT());
 
     baseOSC = ("/" + puara.dmi_name()).c_str();
+    
+    // Set message specific address
+    msgOrientation.setAddress((baseOSC + "/Orientation").c_str());
+    msgAcceleration.setAddress((baseOSC + "/Acceleration").c_str());
+    msgGyroscope.setAddress((baseOSC + "/Gyroscope").c_str());
 
     //=== turn on and init the tft screen ===
     pinMode(TFT_BACKLITE, OUTPUT);
@@ -110,12 +116,6 @@ void loop() {
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
    
-    
-        // Append message specific address
-        msgOrientation.add((baseOSC + "/Orientation").c_str());
-        msgAcceleration.add((baseOSC + "/Acceleration").c_str());
-        msgGyroscope.add((baseOSC + "/Gyroscope").c_str());
-
         msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
         msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
         msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
