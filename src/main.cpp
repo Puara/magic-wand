@@ -47,11 +47,14 @@ float sensor;
 // Create bundle to allow sending multiple OSC messages at once
 OSCBundle bundle;
 
-OSCMessage msgOrientation;
-OSCMessage msgAcceleration;
-OSCMessage msgGyroscope;
+OSCMessage msgOrientation = "";
+OSCMessage msgAcceleration = "";
+OSCMessage msgGyroscope = "";
 
+// Base address of OSC messages
 std::string baseOSC;
+
+
 
 void setup() {
     #ifdef Arduino_h
@@ -106,15 +109,20 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-
-        // Append message specific address
-        msgOrientation = (baseOSC + "/Orientation").c_str();
-        msgAcceleration = (baseOSC + "/Acceleration").c_str();
-        msgGyroscope = (baseOSC + "/Gyroscope").c_str();
+   
     
-        bundle.add(msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z));
-        bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
-        bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
+        // Append message specific address
+        msgOrientation.add((baseOSC + "/Orientation").c_str());
+        msgAcceleration.add((baseOSC + "/Acceleration").c_str());
+        msgGyroscope.add((baseOSC + "/Gyroscope").c_str());
+
+        msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
+        msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
+        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
+    
+        bundle.add(msgOrientation);
+        bundle.add(msgAcceleration);
+        bundle.add(msgGyroscope);
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
@@ -122,6 +130,9 @@ void loop() {
 
         // Clear OSC 
         bundle.empty();
+        msgOrientation.empty();
+        msgAcceleration.empty();
+        msgGyroscope.empty();
     }
 
     /* Display the floating point orientation data and IP address */
