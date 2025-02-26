@@ -1,5 +1,5 @@
 //****************************************************************************//
-// Puara Module Manager                                                       //
+// Puara based Magic Wand (with BNO055 + BMP280 IMU)                          //
 // Société des Arts Technologiques (SAT)                                      //
 // Input Devices and Music Interaction Laboratory (IDMIL), McGill University  //
 //****************************************************************************//
@@ -36,12 +36,26 @@ Puara puara;
  */
 #include <WiFiUdp.h>
 #include <OSCMessage.h>
+#include <OSCBundle.h>
 
 // UDP instances to let us send and receive packets
 WiFiUDP Udp;
 
 // Dummy sensor data
 float sensor;
+        
+// Create bundle to allow sending multiple OSC messages at once
+OSCBundle bundle;
+
+// Append message specific address
+OSCMessage msgOrientation;
+OSCMessage msgAcceleration;
+OSCMessage msgGyroscope;
+
+// Base address of OSC messages
+std::string baseOSC;
+
+
 
 void setup() {
     #ifdef Arduino_h
@@ -56,7 +70,14 @@ void setup() {
     puara.start();
 
     // Start the UDP instances 
-    Udp.begin(puara.getLocalPORT());
+    Udp.begin(puara.LocalPORT());
+
+    baseOSC = ("/" + puara.dmi_name()).c_str();
+    
+    // Set message specific address
+    msgOrientation.setAddress((baseOSC + "/Orientation").c_str());
+    msgAcceleration.setAddress((baseOSC + "/Acceleration").c_str());
+    msgGyroscope.setAddress((baseOSC + "/Gyroscope").c_str());
 
     //=== turn on and init the tft screen ===
     pinMode(TFT_BACKLITE, OUTPUT);
@@ -81,9 +102,11 @@ void setup() {
 
 void loop() {
 
-    /* Get a new sensor event */
-    sensors_event_t event;
-    bno.getEvent(&event);
+    /* Get a new event per sensor */
+    sensors_event_t orientationData, angVelocityData, accelerometerData;
+    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+    bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
+    bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
     /* 
      * Sending OSC messages.
@@ -92,39 +115,41 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-        OSCMessage msg1(("/" + puara.get_dmi_name() + "/X").c_str());
-        OSCMessage msg2(("/" + puara.get_dmi_name() + "/Y").c_str());
-        OSCMessage msg3(("/" + puara.get_dmi_name() + "/Z").c_str());
-        msg1.add(event.orientation.x);
-        msg2.add(event.orientation.y);
-        msg3.add(event.orientation.z);
-        Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msg1.send(Udp);
+   
+        msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
+        msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
+        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
+    
+        bundle.add(msgOrientation);
+        bundle.add(msgAcceleration);
+        bundle.add(msgGyroscope);
+        
+        Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
+        bundle.send(Udp);
         Udp.endPacket();
-        msg1.empty();
-        Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msg2.send(Udp);
-        Udp.endPacket();
-        msg2.empty();
-        Udp.beginPacket(puara.getIP1().c_str(), puara.getPORT1());
-        msg3.send(Udp);
-        Udp.endPacket();
-        msg3.empty();
+
+        // Clear OSC 
+        bundle.empty();
+        msgOrientation.empty();
+        msgAcceleration.empty();
+        msgGyroscope.empty();
     }
 
-    /* Display the floating point data */
+    /* Display the floating point orientation data and IP address */
     canvas.fillScreen(ST77XX_BLACK);
     canvas.setCursor(0, 10);
     canvas.setTextColor(ST77XX_MAGENTA);
-    canvas.setTextSize(3);
+    canvas.setTextSize(2);
     canvas.print("X: ");
-    canvas.print(event.orientation.x, 4);
+    canvas.print(orientationData.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
-    canvas.print(event.orientation.y, 4);
+    canvas.print(orientationData.orientation.y, 4);
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
-    canvas.print(event.orientation.z, 4);
+    canvas.print(orientationData.orientation.z, 4);
+    canvas.print("\nIP: ");
+    canvas.print(puara.staIP().c_str());
     
     tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     
