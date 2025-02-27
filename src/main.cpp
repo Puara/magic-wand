@@ -61,6 +61,7 @@ float zOffset;
 
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     
+
     currentValue -= offsetAmount;
 
     if( currentValue > maxValue){
@@ -140,7 +141,7 @@ void loop() {
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
         
-        msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90));
+        msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -90, 90)).add(offsetValue(orientationData.orientation.z, zOffset, -180, 180));
         //msgOrientation.add(orientationData.orientation.x).add((orientationData.orientation.y) - yOffset).add((orientationData.orientation.z) - zOffset);
         msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
         msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
@@ -169,16 +170,20 @@ void loop() {
     canvas.print(orientationData.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
-    canvas.print((offsetValue(orientationData.orientation.y, yOffset, -180, 180)), 4);
+    canvas.print((offsetValue(orientationData.orientation.y, yOffset, -90, 90)), 4);
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
-    canvas.print((offsetValue(orientationData.orientation.z, zOffset, -90, 90)), 4);
+    canvas.print((offsetValue(orientationData.orientation.z, zOffset, -180, 180)), 4);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
     canvas.print("\n");
     canvas.print(yOffset);
     canvas.print(", ");
     canvas.print(zOffset);
+    canvas.print("\nRegY:");
+    canvas.print(orientationData.orientation.y, 4); 
+    canvas.print("\nRegZ:");
+    canvas.print(orientationData.orientation.z, 4);
     
     tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     
