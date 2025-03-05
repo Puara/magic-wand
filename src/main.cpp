@@ -65,12 +65,12 @@ float offsetValue(float currentValue, float  offsetAmount, float minValue, float
     if(calibrateOffset){ // Keep original values if false
         currentValue -= offsetAmount;
 
-        if( currentValue > maxValue){
-            currentValue = minValue + (currentValue - maxValue);
-        }
-        if( currentValue < minValue){
-            currentValue = maxValue - (minValue - currentValue);
-        }
+    //Loopback if value is outside defined range
+    if( currentValue > maxValue){
+        currentValue = minValue + (currentValue - maxValue);
+    }
+    if( currentValue < minValue){
+        currentValue = maxValue - (minValue - currentValue);
     }
     
     return currentValue;
@@ -167,10 +167,10 @@ void loop() {
     canvas.print(orientationData.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
-    canvas.print((offsetValue(orientationData.orientation.y, yOffset, -180, 180)), 4);
+    canvas.print((offsetValue(orientationData.orientation.y, yOffset, -90, 90)), 4);
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
-    canvas.print((offsetValue(orientationData.orientation.z, zOffset, -90, 90)), 4);
+    canvas.print((offsetValue(orientationData.orientation.z, zOffset, -180, 180)), 4);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
     canvas.print("\nOffsetYZ: ");
