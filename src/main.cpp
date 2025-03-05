@@ -59,15 +59,18 @@ std::string baseOSC;
 float yOffset;
 float zOffset;
 
-float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
-    
-    currentValue -= offsetAmount;
+const bool calibrateOffset = false;
 
-    if( currentValue > maxValue){
-        currentValue = minValue + (currentValue - maxValue);
-    }
-    if( currentValue < minValue){
-        currentValue = maxValue - (minValue - currentValue);
+float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
+    if(calibrateOffset){ // Keep original values if false
+        currentValue -= offsetAmount;
+
+        if( currentValue > maxValue){
+            currentValue = minValue + (currentValue - maxValue);
+        }
+        if( currentValue < minValue){
+            currentValue = maxValue - (minValue - currentValue);
+        }
     }
     
     return currentValue;
@@ -139,15 +142,10 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-        
-        msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90));
-        //msgOrientation.add(orientationData.orientation.x).add((orientationData.orientation.y) - yOffset).add((orientationData.orientation.z) - zOffset);
-        msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
-        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
     
-        bundle.add(msgOrientation);
-        bundle.add(msgAcceleration);
-        bundle.add(msgGyroscope);
+        bundle.add(msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
+        bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
+        bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
@@ -175,7 +173,7 @@ void loop() {
     canvas.print((offsetValue(orientationData.orientation.z, zOffset, -90, 90)), 4);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
-    canvas.print("\n");
+    canvas.print("\nOffsetYZ: ");
     canvas.print(yOffset);
     canvas.print(", ");
     canvas.print(zOffset);
