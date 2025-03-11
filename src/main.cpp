@@ -64,7 +64,7 @@ const bool calibrateOffset = false;
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     if(calibrateOffset){ // Keep original values if false
         currentValue -= offsetAmount;
-
+    }
     //Loopback if value is outside defined range
     if( currentValue > maxValue){
         currentValue = minValue + (currentValue - maxValue);
