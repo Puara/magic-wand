@@ -151,6 +151,10 @@ void loop() {
         bundle.send(Udp);
         Udp.endPacket();
 
+        Udp.beginPacket(puara.IP2().c_str(), puara.PORT2());
+        bundle.send(Udp);
+        Udp.endPacket();
+
         // Clear OSC 
         bundle.empty();
         msgOrientation.empty();
