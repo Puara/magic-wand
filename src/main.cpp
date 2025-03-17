@@ -59,7 +59,7 @@ std::string baseOSC;
 float yOffset;
 float zOffset;
 
-const bool calibrateOffset = false;
+const bool calibrateOffset = true;
 
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     if(calibrateOffset){ // Keep original values if false

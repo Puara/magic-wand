@@ -25,9 +25,17 @@ The IMU data is also displayed on its TFT screen.
 
     <img width="763" alt="Screenshot 2025-02-11 at 2 30 13 PM" src="https://github.com/user-attachments/assets/48288e7e-deaa-42c0-891e-386f7648f610" />
 
-## OSC configuration
+## Configure WiFi connection
 
-1. **Configure WIFI connection**
+1. **Connect to the device**
+    
+    On startup, the device should broadcast its own WiFi access point named "(device name)_(device id)", as specified in the [config.json](data\config.json) file.
+    The default name for this access point should appear as MagicWand_001 and the password can be set in the config file.
+
+2. **Connect the device to your own WiFi network** (Optional)
+
+    Once connected to the access point, a web interface can be accessed at the address MagicWand_001.local or by typing in the device's IP address.
+    
     
 
 ## License
