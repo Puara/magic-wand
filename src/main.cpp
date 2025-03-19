@@ -55,7 +55,26 @@ OSCMessage msgGyroscope;
 // Base address of OSC messages
 std::string baseOSC;
 
+// Offset orientation when calibrating
+float yOffset;
+float zOffset;
 
+const bool calibrateOffset = true;
+
+float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
+    if(calibrateOffset){ // Keep original values if false
+        currentValue -= offsetAmount;
+    }
+    //Loopback if value is outside defined range
+    if( currentValue > maxValue){
+        currentValue = minValue + (currentValue - maxValue);
+    }
+    if( currentValue < minValue){
+        currentValue = maxValue - (minValue - currentValue);
+    }
+    
+    return currentValue;
+}
 
 void setup() {
     #ifdef Arduino_h
@@ -93,9 +112,15 @@ void setup() {
         ;
     }
 
-    delay(1000);
-
     bno.setExtCrystalUse(true);
+
+    delay(1000);
+    sensors_event_t initialOrientation;
+    bno.getEvent(&initialOrientation, Adafruit_BNO055::VECTOR_EULER);
+    yOffset = initialOrientation.orientation.y;
+    zOffset = initialOrientation.orientation.z;
+
+
     Serial.println("setup completed successfully");
 
 }
@@ -108,6 +133,8 @@ void loop() {
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
+
+
     /* 
      * Sending OSC messages.
      * If you're not planning to send messages to both addresses (OSC1 and OSC2),
@@ -115,16 +142,16 @@ void loop() {
      * network (WiFiUdp will print an warning message in those cases).
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
-   
-        msgOrientation.add(orientationData.orientation.x).add(orientationData.orientation.y).add(orientationData.orientation.z);
-        msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z);
-        msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z);
     
-        bundle.add(msgOrientation);
-        bundle.add(msgAcceleration);
-        bundle.add(msgGyroscope);
+        bundle.add(msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
+        bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
+        bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
+        bundle.send(Udp);
+        Udp.endPacket();
+
+        Udp.beginPacket(puara.IP2().c_str(), puara.PORT2());
         bundle.send(Udp);
         Udp.endPacket();
 
@@ -144,12 +171,16 @@ void loop() {
     canvas.print(orientationData.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
-    canvas.print(orientationData.orientation.y, 4);
+    canvas.print((offsetValue(orientationData.orientation.y, yOffset, -90, 90)), 4);
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
-    canvas.print(orientationData.orientation.z, 4);
+    canvas.print((offsetValue(orientationData.orientation.z, zOffset, -180, 180)), 4);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
+    canvas.print("\nOffsetYZ: ");
+    canvas.print(yOffset);
+    canvas.print(", ");
+    canvas.print(zOffset);
     
     tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     
