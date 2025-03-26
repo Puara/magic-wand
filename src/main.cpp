@@ -19,9 +19,7 @@ GFXcanvas16 canvas(240, 135);
 #include <utility/imumaths.h>
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-#define EEPROM_SIZE 32 // Adjust size based on your needs
-
-#include <EEPROM.h>
+#define EEPROM_SIZE 128 // Adjust size based on your needs
 
 // Include Puara's module manager
 // If using Arduino.h, include it before including puara.h
@@ -66,7 +64,12 @@ bool calibrationSaved = false; // Flag to track if calibration data has been sav
 
 const bool calibrateOffset = true;
 
-#define EEPROM_SIZE 32 // Adjust size based on your needs
+void refreshScreen() {
+    canvas.fillScreen(ST77XX_BLACK);
+    canvas.setCursor(0, 10);
+    canvas.setTextColor(ST77XX_MAGENTA);
+    canvas.setTextSize(2);
+}
 
 void saveCalibration() {
     adafruit_bno055_offsets_t calibrationData;
@@ -74,8 +77,8 @@ void saveCalibration() {
 
     // Write calibration data to EEPROM
     EEPROM.put(0, calibrationData);
-    EEPROM.commit();
     Serial.println("Calibration data saved to EEPROM.");
+    Serial.println(calibrationData.mag_offset_x);
 }
 
 bool loadCalibration() {
@@ -106,15 +109,18 @@ void checkAndSaveCalibration() {
         saveCalibration();
         Serial.println("Calibration data saved.");
     } else {
-        Serial.print("Calibration in progress... ");
-        Serial.print("Sys: ");
-        Serial.print(systemCal);
-        Serial.print(", Gyro: ");
-        Serial.print(gyroCal);
-        Serial.print(", Accel: ");
-        Serial.print(accelCal);
-        Serial.print(", Mag: ");
-        Serial.println(magCal);
+        refreshScreen();
+        canvas.println("Calibration in progress... ");
+        canvas.print("Sys: ");
+        canvas.println(systemCal);
+        canvas.print("Gyro: ");
+        canvas.println(gyroCal);
+        canvas.print("Accel: ");
+        canvas.println(accelCal);
+        canvas.print("Mag: ");
+        canvas.println(magCal);
+
+        tft.drawRGBBitmap(0, 0, canvas.getBuffer(), 240, 135);
     }
 }
 
@@ -185,6 +191,9 @@ void setup() {
 
         if (systemCal < 3 || accelCal < 3 || magCal < 3) {
             Serial.println("Loaded calibration data is incomplete. Please recalibrate the sensor.");
+            Serial.println(systemCal);
+            Serial.println(accelCal);
+            Serial.println(magCal);
             
             // Wait for calibration and save it
             while (true) {
@@ -243,6 +252,7 @@ void loop() {
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
     
         //bundle.add(msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
+        bundle.add(msgOrientation).add(magneticData.magnetic.x).add(magneticData.magnetic.y).add(magneticData.magnetic.z);
         bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
         // bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z)); // Commented out gyroscope OSC message
         
@@ -262,10 +272,7 @@ void loop() {
     }
 
     /* Display the floating point orientation data and IP address */
-    canvas.fillScreen(ST77XX_BLACK);
-    canvas.setCursor(0, 10);
-    canvas.setTextColor(ST77XX_MAGENTA);
-    canvas.setTextSize(2);
+    refreshScreen();
     canvas.print("X: ");
     canvas.print(orientationData.orientation.x, 4);
     canvas.setTextColor(ST77XX_WHITE);
