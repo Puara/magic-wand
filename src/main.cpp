@@ -76,6 +76,25 @@ float offsetValue(float currentValue, float  offsetAmount, float minValue, float
     return currentValue;
 }
 
+void checkIncomingOSC() {
+    OSCMessage msg;
+    
+    int size = Udp.parsePacket();
+    if (size > 0) {
+        while (size --){
+            msg.fill(Udp.read());
+        }
+        if (!msg.hasError()) {
+            Serial.println("Received OSC message: ");
+            Serial.print(msg.getAddress());
+        } else{
+            OSCErrorCode error = msg.getError();
+            Serial.print("Error: ");
+            Serial.println(error);
+        }
+    }
+}
+
 void setup() {
     #ifdef Arduino_h
         Serial.begin(115200);
@@ -126,6 +145,8 @@ void setup() {
 }
 
 void loop() {
+
+    checkIncomingOSC();
 
     /* Get a new event per sensor */
     sensors_event_t orientationData, angVelocityData, accelerometerData;
