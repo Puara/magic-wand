@@ -56,10 +56,12 @@ OSCMessage msgGyroscope;
 std::string baseOSC;
 
 // Offset orientation when calibrating
+float xOffset = 0;
 float yOffset;
 float zOffset;
 
 const bool calibrateOffset = true;
+const bool useIP2 = false; // Set to true if you want to send OSC messages to IP2
 
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     if(calibrateOffset){ // Keep original values if false
@@ -76,19 +78,30 @@ float offsetValue(float currentValue, float  offsetAmount, float minValue, float
     return currentValue;
 }
 
+void offsetHeading(OSCMessage &msg) {
+    if (msg.getInt(0) == 1) {
+        // Recalibrate the heading offset
+        sensors_event_t orientationData;
+        bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+        xOffset = orientationData.orientation.x;
+        Serial.print("Heading offset set to: ");
+        Serial.println(xOffset);
+    }
+}
+
 void checkIncomingOSC() {
-    OSCMessage msg;
+    
+    OSCBundle bundle;
     
     int size = Udp.parsePacket();
     if (size > 0) {
         while (size --){
-            msg.fill(Udp.read());
+            bundle.fill(Udp.read());
         }
-        if (!msg.hasError()) {
-            Serial.println("Received OSC message: ");
-            Serial.print(msg.getAddress());
+        if (!bundle.hasError()) {
+            bundle.dispatch("/reCalibrate", offsetHeading);
         } else{
-            OSCErrorCode error = msg.getError();
+            OSCErrorCode error = bundle.getError();
             Serial.print("Error: ");
             Serial.println(error);
         }
@@ -164,18 +177,20 @@ void loop() {
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
     
-        bundle.add(msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
+        bundle.add(msgOrientation.add((offsetValue(orientationData.orientation.x, xOffset, 0, 360))).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
         bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
         bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
         Udp.endPacket();
-
-        Udp.beginPacket(puara.IP2().c_str(), puara.PORT2());
-        bundle.send(Udp);
-        Udp.endPacket();
-
+        
+        if(useIP2){ // Disabled as to not clutter the serial output when IP2 is not used
+            Udp.beginPacket(puara.IP2().c_str(), puara.PORT2());
+            bundle.send(Udp);
+            Udp.endPacket();
+        }
+        
         // Clear OSC 
         bundle.empty();
         msgOrientation.empty();
@@ -189,7 +204,7 @@ void loop() {
     canvas.setTextColor(ST77XX_MAGENTA);
     canvas.setTextSize(2);
     canvas.print("X: ");
-    canvas.print(orientationData.orientation.x, 4);
+    canvas.print((offsetValue(orientationData.orientation.x, xOffset, 0, 360)), 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
     canvas.print((offsetValue(orientationData.orientation.y, yOffset, -90, 90)), 4);
@@ -198,7 +213,9 @@ void loop() {
     canvas.print((offsetValue(orientationData.orientation.z, zOffset, -180, 180)), 4);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
-    canvas.print("\nOffsetYZ: ");
+    canvas.print("\nOffsetXYZ: ");
+    canvas.print(xOffset);
+    canvas.print(", ");
     canvas.print(yOffset);
     canvas.print(", ");
     canvas.print(zOffset);
