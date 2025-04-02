@@ -19,7 +19,6 @@ GFXcanvas16 canvas(240, 135);
 #include <utility/imumaths.h>
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-
 // Include Puara's module manager
 // If using Arduino.h, include it before including puara.h
 #include "puara.h"
@@ -51,6 +50,7 @@ OSCBundle bundle;
 OSCMessage msgOrientation;
 OSCMessage msgAcceleration;
 OSCMessage msgGyroscope;
+OSCMessage msgPosition;
 
 // Base address of OSC messages
 std::string baseOSC;
@@ -60,8 +60,31 @@ float xOffset = 0;
 float yOffset;
 float zOffset;
 
+float xPosition;
+float yPosition;
+
 const bool calibrateOffset = true;
 const bool useIP2 = false; // Set to true if you want to send OSC messages to IP2
+
+void findXY(sensors_event_t* orientationData) {
+    // Access the orientation data using the pointer
+    float xAngle = orientationData->orientation.x;
+    float yAngle = orientationData->orientation.y;
+    float zAngle = orientationData->orientation.z;
+
+    float x = sin(yAngle*PI/180);
+    float y = sin(zAngle*PI/180);
+    x = (x * (cos(xAngle*PI/180))) - (y * (sin(xAngle*PI/180)));
+    y = (x * (sin(xAngle*PI/180))) + (y * (cos(xAngle*PI/180)));
+    
+    xPosition = x;
+    yPosition = y;
+
+    Serial.print("X Position: ");
+    Serial.println(xPosition);
+    Serial.print("Y Position: ");
+    Serial.println(yPosition);
+}
 
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     if(calibrateOffset){ // Keep original values if false
@@ -129,6 +152,7 @@ void setup() {
     msgOrientation.setAddress((baseOSC + "/Orientation").c_str());
     msgAcceleration.setAddress((baseOSC + "/Acceleration").c_str());
     msgGyroscope.setAddress((baseOSC + "/Gyroscope").c_str());
+    msgPosition.setAddress((baseOSC + "/Position").c_str());
 
     //=== turn on and init the tft screen ===
     pinMode(TFT_BACKLITE, OUTPUT);
@@ -167,7 +191,8 @@ void loop() {
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
-
+    // Pass the address of orientationData to findXY
+    findXY(&orientationData);
 
     /* 
      * Sending OSC messages.
@@ -180,6 +205,7 @@ void loop() {
         bundle.add(msgOrientation.add((offsetValue(orientationData.orientation.x, xOffset, 0, 360))).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
         bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
         bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
+        bundle.add(msgPosition.add(xPosition).add(yPosition));
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
@@ -196,6 +222,7 @@ void loop() {
         msgOrientation.empty();
         msgAcceleration.empty();
         msgGyroscope.empty();
+        msgPosition.empty();
     }
 
     /* Display the floating point orientation data and IP address */
