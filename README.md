@@ -42,7 +42,12 @@ The IMU data is also displayed on its TFT screen.
 
     The device's web interface also allows specifying up to 2 output addresses and ports.
     
-    
+## IMU Calibration
+
+**Initial calibration**
+
+When booting, the device calibrates to its current orientation.
+If recalibration of the horizontal axis is needed, a pulse can be sent to the OSC adress **/reCalibrate**.
 
 ## License
 
