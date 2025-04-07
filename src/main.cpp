@@ -66,26 +66,6 @@ float yPosition;
 const bool calibrateOffset = true;
 const bool useIP2 = false; // Set to true if you want to send OSC messages to IP2
 
-void findXY(sensors_event_t* orientationData) {
-    // Access the orientation data using the pointer
-    float xAngle = orientationData->orientation.x;
-    float yAngle = orientationData->orientation.y;
-    float zAngle = orientationData->orientation.z;
-
-    float x = sin(yAngle*PI/180);
-    float y = sin(zAngle*PI/180);
-    x = (x * (cos(xAngle*PI/180))) - (y * (sin(xAngle*PI/180)));
-    y = (x * (sin(xAngle*PI/180))) + (y * (cos(xAngle*PI/180)));
-    
-    xPosition = x;
-    yPosition = y;
-
-    Serial.print("X Position: ");
-    Serial.println(xPosition);
-    Serial.print("Y Position: ");
-    Serial.println(yPosition);
-}
-
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     if(calibrateOffset){ // Keep original values if false
         currentValue -= offsetAmount;
@@ -100,8 +80,25 @@ float offsetValue(float currentValue, float  offsetAmount, float minValue, float
     
     return currentValue;
 }
+void findXY(sensors_event_t data) {
 
-void offsetHeading(OSCMessage &msg) {
+    float xAngle = (offsetValue(data.orientation.x, xOffset, 0, 360));
+    float yAngle = (offsetValue(data.orientation.y, yOffset, -180, 180));
+    float zAngle = (offsetValue(data.orientation.z, zOffset, -90, 90));
+
+    // Convert angles to radians and find X and Y positions
+    float x = sin(yAngle*PI/180);
+    float y = sin(zAngle*PI/180);
+    xPosition = (x * (cos(xAngle*PI/180))) - (y * (sin(xAngle*PI/180)));
+    yPosition = (x * (sin(xAngle*PI/180))) + (y * (cos(xAngle*PI/180)));
+    
+    Serial.print("X Position: ");
+    Serial.println(xPosition);
+    Serial.print("Y Position: ");
+    Serial.println(yPosition);
+}
+
+void offsetXAngle(OSCMessage &msg) {
     if (msg.getInt(0) == 1) {
         // Recalibrate the heading offset
         sensors_event_t orientationData;
@@ -122,7 +119,8 @@ void checkIncomingOSC() {
             bundle.fill(Udp.read());
         }
         if (!bundle.hasError()) {
-            bundle.dispatch("/reCalibrate", offsetHeading);
+            // Offset angle to compensate for drift
+            bundle.dispatch("/reCalibrate", offsetXAngle);
         } else{
             OSCErrorCode error = bundle.getError();
             Serial.print("Error: ");
@@ -192,7 +190,7 @@ void loop() {
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
     // Pass the address of orientationData to findXY
-    findXY(&orientationData);
+    findXY(orientationData);
 
     /* 
      * Sending OSC messages.
@@ -228,8 +226,9 @@ void loop() {
     /* Display the floating point orientation data and IP address */
     canvas.fillScreen(ST77XX_BLACK);
     canvas.setCursor(0, 10);
-    canvas.setTextColor(ST77XX_MAGENTA);
     canvas.setTextSize(2);
+
+    canvas.setTextColor(ST77XX_MAGENTA);
     canvas.print("X: ");
     canvas.print((offsetValue(orientationData.orientation.x, xOffset, 0, 360)), 4);
     canvas.setTextColor(ST77XX_WHITE);
@@ -238,8 +237,12 @@ void loop() {
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
     canvas.print((offsetValue(orientationData.orientation.z, zOffset, -180, 180)), 4);
+
+    canvas.setTextColor(ST77XX_GREEN);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
+
+    canvas.setTextColor(ST77XX_YELLOW);
     canvas.print("\nOffsetXYZ: ");
     canvas.print(xOffset);
     canvas.print(", ");
