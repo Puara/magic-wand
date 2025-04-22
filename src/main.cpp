@@ -19,7 +19,6 @@ GFXcanvas16 canvas(240, 135);
 #include <utility/imumaths.h>
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-
 // Include Puara's module manager
 // If using Arduino.h, include it before including puara.h
 #include "puara.h"
@@ -51,15 +50,21 @@ OSCBundle bundle;
 OSCMessage msgOrientation;
 OSCMessage msgAcceleration;
 OSCMessage msgGyroscope;
+OSCMessage msgPosition;
 
 // Base address of OSC messages
 std::string baseOSC;
 
 // Offset orientation when calibrating
+float xOffset = 0;
 float yOffset;
 float zOffset;
 
+float xPosition;
+float yPosition;
+
 const bool calibrateOffset = true;
+const bool useIP2 = false; // Set to true if you want to send OSC messages to IP2
 
 float offsetValue(float currentValue, float  offsetAmount, float minValue, float maxValue){
     if(calibrateOffset){ // Keep original values if false
@@ -74,6 +79,54 @@ float offsetValue(float currentValue, float  offsetAmount, float minValue, float
     }
     
     return currentValue;
+}
+void findXY(sensors_event_t data) {
+
+    float xAngle = (offsetValue(data.orientation.x, xOffset, 0, 360));
+    float yAngle = (offsetValue(data.orientation.y, yOffset, -180, 180));
+    float zAngle = (offsetValue(data.orientation.z, zOffset, -90, 90));
+
+    // Convert angles to radians and find X and Y positions
+    float x = sin(yAngle*PI/180);
+    float y = sin(zAngle*PI/180);
+    xPosition = (x * (cos(xAngle*PI/180))) - (y * (sin(xAngle*PI/180)));
+    yPosition = (x * (sin(xAngle*PI/180))) + (y * (cos(xAngle*PI/180)));
+    
+    Serial.print("X Position: ");
+    Serial.println(xPosition);
+    Serial.print("Y Position: ");
+    Serial.println(yPosition);
+}
+
+void offsetXAngle(OSCMessage &msg) {
+    if (msg.getInt(0) == 1) {
+        // Recalibrate the heading offset
+        sensors_event_t orientationData;
+        bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+        xOffset = orientationData.orientation.x;
+        Serial.print("Heading offset set to: ");
+        Serial.println(xOffset);
+    }
+}
+
+void checkIncomingOSC() {
+    
+    OSCBundle bundle;
+    
+    int size = Udp.parsePacket();
+    if (size > 0) {
+        while (size --){
+            bundle.fill(Udp.read());
+        }
+        if (!bundle.hasError()) {
+            // Offset angle to compensate for drift
+            bundle.dispatch("/reCalibrate", offsetXAngle);
+        } else{
+            OSCErrorCode error = bundle.getError();
+            Serial.print("Error: ");
+            Serial.println(error);
+        }
+    }
 }
 
 void setup() {
@@ -97,6 +150,7 @@ void setup() {
     msgOrientation.setAddress((baseOSC + "/Orientation").c_str());
     msgAcceleration.setAddress((baseOSC + "/Acceleration").c_str());
     msgGyroscope.setAddress((baseOSC + "/Gyroscope").c_str());
+    msgPosition.setAddress((baseOSC + "/Position").c_str());
 
     //=== turn on and init the tft screen ===
     pinMode(TFT_BACKLITE, OUTPUT);
@@ -127,13 +181,16 @@ void setup() {
 
 void loop() {
 
+    checkIncomingOSC();
+
     /* Get a new event per sensor */
     sensors_event_t orientationData, angVelocityData, accelerometerData;
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
-
+    // Pass the address of orientationData to findXY
+    findXY(orientationData);
 
     /* 
      * Sending OSC messages.
@@ -143,41 +200,52 @@ void loop() {
      */
     if (puara.IP1_ready()) { // set namespace and send OSC message for address 1
     
-        bundle.add(msgOrientation.add(orientationData.orientation.x).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
+        bundle.add(msgOrientation.add((offsetValue(orientationData.orientation.x, xOffset, 0, 360))).add(offsetValue(orientationData.orientation.y, yOffset, -180, 180)).add(offsetValue(orientationData.orientation.z, zOffset, -90, 90)));
         bundle.add(msgAcceleration.add(accelerometerData.acceleration.x).add(accelerometerData.acceleration.y).add(accelerometerData.acceleration.z));
         bundle.add(msgGyroscope.add(angVelocityData.acceleration.x).add(angVelocityData.acceleration.y).add(angVelocityData.acceleration.z));
+        bundle.add(msgPosition.add(xPosition).add(yPosition));
         
         Udp.beginPacket(puara.IP1().c_str(), puara.PORT1());
         bundle.send(Udp);
         Udp.endPacket();
-
-        Udp.beginPacket(puara.IP2().c_str(), puara.PORT2());
-        bundle.send(Udp);
-        Udp.endPacket();
-
+        
+        if(useIP2){ // Disabled as to not clutter the serial output when IP2 is not used
+            Udp.beginPacket(puara.IP2().c_str(), puara.PORT2());
+            bundle.send(Udp);
+            Udp.endPacket();
+        }
+        
         // Clear OSC 
         bundle.empty();
         msgOrientation.empty();
         msgAcceleration.empty();
         msgGyroscope.empty();
+        msgPosition.empty();
     }
 
     /* Display the floating point orientation data and IP address */
     canvas.fillScreen(ST77XX_BLACK);
     canvas.setCursor(0, 10);
-    canvas.setTextColor(ST77XX_MAGENTA);
     canvas.setTextSize(2);
+
+    canvas.setTextColor(ST77XX_MAGENTA);
     canvas.print("X: ");
-    canvas.print(orientationData.orientation.x, 4);
+    canvas.print((offsetValue(orientationData.orientation.x, xOffset, 0, 360)), 4);
     canvas.setTextColor(ST77XX_WHITE);
     canvas.print("\nY: ");
     canvas.print((offsetValue(orientationData.orientation.y, yOffset, -90, 90)), 4);
     canvas.setTextColor(ST77XX_CYAN);
     canvas.print("\nZ: ");
     canvas.print((offsetValue(orientationData.orientation.z, zOffset, -180, 180)), 4);
+
+    canvas.setTextColor(ST77XX_GREEN);
     canvas.print("\nIP: ");
     canvas.print(puara.staIP().c_str());
-    canvas.print("\nOffsetYZ: ");
+
+    canvas.setTextColor(ST77XX_YELLOW);
+    canvas.print("\nOffsetXYZ: ");
+    canvas.print(xOffset);
+    canvas.print(", ");
     canvas.print(yOffset);
     canvas.print(", ");
     canvas.print(zOffset);

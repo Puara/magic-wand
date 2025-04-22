@@ -35,8 +35,19 @@ The IMU data is also displayed on its TFT screen.
 2. **Connect the device to your own WiFi network** (Optional)
 
     Once connected to the access point, a web interface can be accessed at the address MagicWand_001.local or by typing in the device's IP address.
+    On this page, enter your SSID and network password and reboot the device.
+    If done correctly, the IP address on the screen should change.
+
+3. **Add output IP address**
+
+    The device's web interface also allows specifying up to 2 output addresses and ports.
     
-    
+## IMU Calibration
+
+**Initial calibration**
+
+When booting, the device calibrates to its current orientation.
+If recalibration of the horizontal axis is needed, a pulse can be sent to the OSC adress **/reCalibrate**.
 
 ## License
 
